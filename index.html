@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexa Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .chat-container {
+            max-width: 768px;
+            margin: auto;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        .chat-header {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .chat-messages {
+            height: 60vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+            border: 2px solid transparent;
+        }
+        .message-bubble {
+            max-width: 80%;
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+        }
+        .user-message {
+            background-color: #d1e5ff;
+            color: #1e40af;
+        }
+        .bot-message {
+            background-color: #e2e8f0;
+            color: #2d3748;
+        }
+        .audio-player-container {
+            margin-top: 0.5rem;
+        }
+        .audio-player {
+            width: 100%;
+        }
+        .loading-dot {
+            animation: dot-pulse 1.5s infinite ease-in-out;
+            opacity: 0;
+        }
+        .loading-dot:nth-child(1) { animation-delay: 0s; }
+        .loading-dot:nth-child(2) { animation-delay: 0.25s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.5s; }
+        @keyframes dot-pulse {
+            0%, 100% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Chat Interface -->
+    <div class="chat-container w-full bg-white flex flex-col h-[80vh]">
+        <header class="chat-header p-4 text-center text-2xl font-semibold rounded-t-xl">Nexa Chatbot</header>
+        
+        <!-- Chat Messages Display -->
+        <div id="messages" class="chat-messages flex-1 p-4 space-y-4">
+            <!-- Messages will be injected here by JavaScript -->
+        </div>
+
+        <!-- User Input Area -->
+        <div class="p-4 bg-gray-50 flex flex-col space-y-4 rounded-b-xl border-t border-gray-200">
+            <!-- Loading Indicator -->
+            <div id="loading" class="flex justify-center items-center text-sm text-gray-500 hidden">
+                <span class="mr-2">Nexa is thinking...</span>
+                <span class="loading-dot w-2 h-2 bg-blue-500 rounded-full"></span>
+                <span class="loading-dot w-2 h-2 bg-blue-500 rounded-full mx-1"></span>
+                <span class="loading-dot w-2 h-2 bg-blue-500 rounded-full"></span>
+            </div>
+
+            <!-- File Upload and Microphone Buttons -->
+            <div class="flex items-center space-x-2">
+                <label for="file_upload" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-full cursor-pointer transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L6.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    <input type="file" id="file_upload" class="hidden" />
+                </label>
+                <button id="record_btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3zM8 3a1 1 0 011-1h2a1 1 0 011 1v11a1 1 0 01-1 1H9a1 1 0 01-1-1V3zM14 8a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1V8z" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Text Input & Send Button -->
+            <div class="flex items-center space-x-2">
+                <input type="text" id="user_input" placeholder="Type your message..." class="flex-1 py-2 px-4 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                <button id="send_btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 00.149.337.999.999 0 00.665.376h14.77a1 1 0 00.665-.376.999.999 0 00.149-.337l-7-14z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messagesEl = document.getElementById('messages');
+        const userInputEl = document.getElementById('user_input');
+        const sendBtn = document.getElementById('send_btn');
+        const recordBtn = document.getElementById('record_btn');
+        const fileUploadEl = document.getElementById('file_upload');
+        const loadingEl = document.getElementById('loading');
+
+        const API_URL = "http://127.0.0.1:8000"; // IMPORTANT: Update this if your server port changes.
+
+        let isRecording = false;
+        let recognition = null;
+        let isSpeaking = false;
+
+        // Function to create and append a new message bubble to the chat
+        function addMessage(text, sender) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const messageBubble = document.createElement('div');
+            messageBubble.className = `message-bubble ${sender === 'user' ? 'user-message' : 'bot-message'}`;
+            messageBubble.textContent = text;
+            messageWrapper.appendChild(messageBubble);
+
+            messagesEl.appendChild(messageWrapper);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        // Function to create and append an audio message bubble
+        function addAudioMessage(audioBlob) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = 'flex justify-start';
+
+            const messageBubble = document.createElement('div');
+            messageBubble.className = 'message-bubble bot-message audio-message';
+
+            const audioPlayer = document.createElement('audio');
+            audioPlayer.className = 'audio-player';
+            audioPlayer.controls = true;
+            audioPlayer.src = URL.createObjectURL(audioBlob);
+            messageBubble.appendChild(audioPlayer);
+            
+            messageWrapper.appendChild(messageBubble);
+            messagesEl.appendChild(messageWrapper);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // Function to handle sending a text message
+        async function sendTextToChat(text, endpoint) {
+            if (!text.trim()) return;
+
+            addMessage(text, 'user');
+            userInputEl.value = '';
+            loadingEl.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: [{ role: 'user', content: text }] })
+                });
+
+                if (response.ok) {
+                    if (endpoint === '/chat') {
+                        const data = await response.json();
+                        addMessage(data.response, 'bot');
+                    } else if (endpoint === '/chat_audio') {
+                        const audioBlob = await response.blob();
+                        addAudioMessage(audioBlob);
+                    }
+                } else {
+                    addMessage("Oops! Something went wrong with the server response.", 'bot');
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                // Updated error message to be more helpful
+                addMessage("Oops! I can't connect to the chatbot server. Please make sure the Python code is running.", 'bot');
+            } finally {
+                loadingEl.classList.add('hidden');
+            }
+        }
+        
+        // Function to handle file upload
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            addMessage(`Uploading file: ${file.name}`, 'user');
+            loadingEl.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/upload_file/`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addMessage(`I got the file, and guess what? ${data.message}`, 'bot');
+                } else {
+                    addMessage("Oops! Couldn't upload the file.", 'bot');
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                addMessage("Oops! I'm having trouble with the upload. Make sure the server is running.", 'bot');
+            } finally {
+                loadingEl.classList.add('hidden');
+            }
+        }
+
+        // Event Listeners
+        sendBtn.addEventListener('click', () => sendTextToChat(userInputEl.value, '/chat'));
+        userInputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendTextToChat(userInputEl.value, '/chat');
+            }
+        });
+
+        // Microphone Logic
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                recognition.stop();
+                isRecording = false;
+                recordBtn.classList.remove('bg-gray-400');
+                recordBtn.classList.add('bg-red-500');
+            } else {
+                if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    recognition = new SpeechRecognition();
+                    recognition.lang = 'en-US'; // Adjust language as needed
+                    recognition.interimResults = false;
+                    recognition.maxAlternatives = 1;
+                    
+                    recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        sendTextToChat(transcript, '/chat_audio');
+                    };
+                    
+                    recognition.onstart = () => {
+                        isRecording = true;
+                        recordBtn.classList.add('bg-gray-400');
+                        recordBtn.classList.remove('bg-red-500');
+                        addMessage("Listening...", 'user'); // Visual cue for the user
+                    };
+                    
+                    recognition.onend = () => {
+                        isRecording = false;
+                        recordBtn.classList.remove('bg-gray-400');
+                        recordBtn.classList.add('bg-red-500');
+                    };
+                    
+                    recognition.onerror = (event) => {
+                        console.error("Speech recognition error", event);
+                        addMessage("Sorry, I didn't catch that. Can you type it?", 'bot');
+                        isRecording = false;
+                        recordBtn.classList.remove('bg-gray-400');
+                        recordBtn.classList.add('bg-red-500');
+                    };
+                    
+                    recognition.start();
+                } else {
+                    alert('Speech recognition is not supported in this browser.');
+                }
+            }
+        });
+        
+        // File Upload Logic
+        fileUploadEl.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        });
+        
+        // Initial welcome message
+        document.addEventListener('DOMContentLoaded', () => {
+            addMessage("Hey, I'm Nexa! Ready to chat? 😎", 'bot');
+        });
+
+    </script>
+</body>
+</html>
